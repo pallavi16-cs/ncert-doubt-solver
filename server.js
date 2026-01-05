@@ -1,19 +1,9 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config();
-const systemPrompt = `
-You are a Multilingual NCERT Doubt-Solver for students in Grades 5–10.
-Respond step by step in plain text ONLY. DO NOT use markdown headings (###), LaTeX, $, _, *, or any symbols.
-Use the following rules for chemical reactions:
-- Represent chemicals normally: CO2, H2O, O2, C6H12O6
-- Use → for reactions instead of \\xrightarrow
-- Bold important words using **double asterisks**
-- Write NCERT equations in a single line, easy to read
-- Keep everything concise and exam-friendly
-Strictly follow these rules. Do NOT deviate.
-`;
 
 const app = express();
 app.use(express.json());
@@ -22,13 +12,22 @@ app.use(express.static("public"));
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
 
+if (!API_KEY) {
+  console.error("GEMINI_API_KEY is missing!");
+}
 
 app.post("/ask", async (req, res) => {
   const { messageText, grade, subject } = req.body;
 
-  const systemPrompt =
-    "You are a highly specialized Multilingual NCERT Doubt-Solver for students in Grades 5-10. " +
-    "Explain step by step using simple plain text. Keep answers short and NCERT-based.";
+  const systemPrompt = `
+You are a Multilingual NCERT Doubt-Solver for students in Grades 5–10.
+Respond step by step in plain text ONLY. DO NOT use markdown headings, LaTeX, $, _, *, or any symbols.
+Use the following rules for chemical reactions:
+- Represent chemicals normally: CO2, H2O, O2, C6H12O6
+- Use → for reactions
+- Bold important words using **double asterisks**
+- Keep NCERT equations concise and exam-friendly
+`;
 
   const userQuery = `Grade: ${grade}, Subject: ${subject}. Question: ${messageText}`;
 
@@ -46,18 +45,19 @@ app.post("/ask", async (req, res) => {
     );
 
     const data = await response.json();
-    const answer =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No answer generated.";
-
+    const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No answer generated.";
     res.json({ answer });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Gemini API error" });
   }
 });
 
-app.listen(3000, () => {
-  console.log(" Server running at http://localhost:3000");
+app.get("*", (req, res) => {
+  res.sendFile(path.join(process.cwd(), "public", "index.html"));
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
